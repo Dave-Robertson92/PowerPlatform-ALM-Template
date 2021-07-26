@@ -1,0 +1,42 @@
+trigger:
+- main
+
+parameters:
+- name: Solutions
+  displayName: List of solutions to pack
+  type: object
+  default: 
+
+pool:
+  vmImage: windows-2019
+
+steps:
+- task: PowerPlatformToolInstaller@0
+  inputs:
+    DefaultVersion: true
+- task: NuGetCommand@2
+  inputs:
+    command: 'restore'
+    restoreSolution: 'Package/CDSPackage.csproj'
+    feedsToUse: 'select'
+- task: VSBuild@1
+  inputs:
+    solution: 'Package/CDSPackage.csproj'
+    configuration: 'release'
+    clean: true
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: 'Package\bin\Release\bin\Release'
+    Contents: '**'
+    TargetFolder: '$(build.artifactstagingdirectory)'
+- ${{ each solution in parameters.Solutions }}: 
+   - task: PowerPlatformPackSolution@0
+     inputs:
+       SolutionSourceFolder: 'Solutions/${{ solution }}'
+       SolutionOutputFile: '$(build.artifactstagingdirectory)/PkgFolder/${{ solution }}.zip'
+       SolutionType: 'Both'
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'Solutions'
+    publishLocation: 'Container'
